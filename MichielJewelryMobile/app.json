@@ -1,0 +1,40 @@
+{
+  "expo": {
+    "name": "MichielJewelryMobile",
+    "slug": "michiel-jewelry-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#000000"
+    },
+    "platforms": [
+      "ios",
+      "android"
+    ],
+    "plugins": [
+      [
+        "expo-font",
+        "expo-status-bar",
+        "expo-splash-screen"
+      ]
+    ],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "bundleIdentifier": "com.michiel.jewelry",
+      "buildNumber": "1.0.0",
+      "supportsTablet": true
+    },
+    "android": {
+      "package": "com.michiel.jewelry",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#D4AF37"
+      }
+    }
+  }
+}

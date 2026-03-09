@@ -1,0 +1,60 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Category {
+  id            String    @id @default(cuid())
+  name          String
+  nameAr        String
+  description   String?
+  descriptionAr String?
+  karat         Int
+  type          String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  products      Product[]
+
+  @@map("categories")
+}
+
+model Product {
+  id            String   @id @default(cuid())
+  name          String
+  nameAr        String
+  description   String?
+  descriptionAr String?
+  price         Float?
+  weight        Float?
+  karat         Int
+  purity        String?
+  images        String?
+  inStock       Boolean  @default(true)
+  featured      Boolean  @default(false)
+  categoryId    String
+  certificate   String?
+  manufacturer  String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  productType   String?
+  category      Category @relation(fields: [categoryId], references: [id])
+
+  @@map("products")
+}
+
+model GoldPriceSetting {
+  id                    String   @id @default(cuid())
+  basePricePerGram      Float    // 24K gold price in EGP per gram (canonical source of truth)
+  usdRate               Float    @default(48.5)
+  source                String   @default("manual") // "override", "api", "manual"
+  lastFetchedAt         DateTime?
+  lastUpdatedAt         DateTime @default(now()) @updatedAt
+  createdAt             DateTime @default(now())
+
+  @@map("gold_price_settings")
+}
+

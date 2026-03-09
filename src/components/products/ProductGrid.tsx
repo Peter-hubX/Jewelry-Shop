@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { AnimatePresence, motion } from 'framer-motion';
-import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import ProductQuickView from './ProductQuickView';
 
@@ -38,7 +37,6 @@ export function ProductGrid({ initialKarat, initialType, initialCategoryName }: 
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(false);
 
-    // Sync props with state
     useEffect(() => {
         if (initialKarat !== undefined) setSelectedKarat(initialKarat);
         if (initialType !== undefined) setSelectedType(initialType);
@@ -47,7 +45,6 @@ export function ProductGrid({ initialKarat, initialType, initialCategoryName }: 
     useEffect(() => {
         if (initialCategoryName) {
             setSelectedCategoryName(initialCategoryName);
-            // when filtering by collection, clear karat/type filters
             setSelectedKarat(null);
             setSelectedType(null);
         }
@@ -80,7 +77,7 @@ export function ProductGrid({ initialKarat, initialType, initialCategoryName }: 
 
     const getProductTypes = (karat: number) => {
         if (karat === 24) {
-            return [{ id: 'bar', name: 'Rings', nameAr: 'سبائك' }];
+            return [{ id: 'bar', name: 'Bars', nameAr: 'سبائك' }];
         }
         return [
             { id: 'ring', name: 'Rings', nameAr: 'خواتم' },
@@ -123,10 +120,7 @@ export function ProductGrid({ initialKarat, initialType, initialCategoryName }: 
 
                     {(selectedKarat || selectedType) && (
                         <Button
-                            onClick={() => {
-                                setSelectedKarat(null);
-                                setSelectedType(null);
-                            }}
+                            onClick={() => { setSelectedKarat(null); setSelectedType(null); }}
                             variant="outline"
                             className="mt-6 border-yellow-500/50 text-yellow-500 hover:bg-yellow-500 hover:text-black transition-all"
                         >
@@ -137,13 +131,8 @@ export function ProductGrid({ initialKarat, initialType, initialCategoryName }: 
 
                 {/* Filters */}
                 <div className="mb-12 space-y-8">
-                    {/* Karat Filter */}
                     {!selectedKarat && (
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            className="flex flex-wrap justify-center gap-4"
-                        >
+                        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-wrap justify-center gap-4">
                             {[18, 21, 24].map((karat) => (
                                 <Button
                                     key={karat}
@@ -157,13 +146,8 @@ export function ProductGrid({ initialKarat, initialType, initialCategoryName }: 
                         </motion.div>
                     )}
 
-                    {/* Type Filter */}
                     {selectedKarat && (
-                        <motion.div
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: 'auto' }}
-                            className="text-center"
-                        >
+                        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="text-center">
                             <h3 className="text-xl font-bold mb-6 gold-text">تصفية حسب النوع</h3>
                             <div className="flex flex-wrap justify-center gap-3">
                                 {getProductTypes(selectedKarat).map((type) => (
@@ -194,10 +178,7 @@ export function ProductGrid({ initialKarat, initialType, initialCategoryName }: 
                         ))}
                     </div>
                 ) : products.length > 0 ? (
-                    <motion.div
-                        layout
-                        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
-                    >
+                    <motion.div layout className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                         <AnimatePresence mode="popLayout">
                             {products.map((product) => (
                                 <motion.div
@@ -210,52 +191,50 @@ export function ProductGrid({ initialKarat, initialType, initialCategoryName }: 
                                 >
                                     <Card className="panel panel-hover transition-all duration-300 group h-full backdrop-blur-sm hover:scale-[1.02]">
                                         <CardContent className="p-4 flex flex-col h-full">
-                                            <div className="aspect-square bg-gradient-to-br from-yellow-900/15 to-yellow-600/10 rounded-lg mb-4 flex items-center justify-center overflow-hidden relative border border-white/5">
-                                                <div className="absolute inset-0 bg-yellow-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                                            {/* Image container */}
+                                            <div className="aspect-square bg-gradient-to-br from-yellow-900/15 to-yellow-600/10 rounded-lg mb-4 overflow-hidden relative border border-white/5">
+                                                <div className="absolute inset-0 bg-yellow-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10"></div>
 
                                                 {product.images && product.images.length > 0 ? (
-                                                    <Image
+                                                    // eslint-disable-next-line @next/next/no-img-element
+                                                    <img
                                                         src={product.images[0]}
                                                         alt={product.nameAr}
-                                                        fill
-                                                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                                                        className="object-cover transform group-hover:scale-110 transition-transform duration-500"
-                                                        // Removed i < 4 because map index is not passed here correctly in the original map
-                                                        priority={false}
+                                                        className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-500"
                                                         onError={(e) => {
-                                                            const target = e.target as HTMLImageElement;
-                                                            if (target) target.style.opacity = '0';
+                                                            const target = e.currentTarget;
+                                                            target.style.display = 'none';
+                                                            const fallback = target.nextElementSibling as HTMLElement;
+                                                            if (fallback) fallback.style.display = 'flex';
                                                         }}
                                                     />
                                                 ) : null}
+
+                                                {/* Fallback shown when no image or image fails to load */}
                                                 <div
-                                                    className="w-full h-full flex items-center justify-center bg-gray-800"
+                                                    className="absolute inset-0 flex items-center justify-center bg-gray-900"
                                                     style={{ display: (product.images && product.images.length > 0) ? 'none' : 'flex' }}
                                                 >
-                                                    <div className="w-20 h-20 gold-gradient rounded-full shadow-lg"></div>
+                                                    <div className="w-20 h-20 gold-gradient rounded-full shadow-lg flex items-center justify-center">
+                                                        <span className="text-black font-bold text-xl">{product.karat}K</span>
+                                                    </div>
                                                 </div>
 
                                                 {product.featured && (
-                                                    <div className="absolute top-2 right-2">
+                                                    <div className="absolute top-2 right-2 z-20">
                                                         <Badge variant="secondary" className="bg-yellow-500 text-black font-bold shadow-lg">
                                                             مميز
                                                         </Badge>
                                                     </div>
                                                 )}
 
-                                                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center pb-4">
-                                                    {/* Quick view dialog */}
-                                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                                    {/* ProductQuickView uses Radix Dialog */}
-                                                    <div>
-                                                        {/* Lazy load quick view to avoid adding heavy markup for every product when not used */}
-                                                        <ProductQuickView product={product as any} />
-                                                    </div>
+                                                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-black/60 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center pb-4 z-20">
+                                                    <ProductQuickView product={product as any} />
                                                 </div>
                                             </div>
 
                                             <div className="mt-auto">
-                                                <div className="flex items-center gap-2 mb-3">
+                                                <div className="flex items-center gap-2 mb-3 flex-wrap">
                                                     <span className="text-xs uppercase tracking-[0.18em] text-yellow-500/80">{product.productType || product.category.type}</span>
                                                     <span className="text-[11px] px-2 py-1 rounded-full pill">{product.karat} عيار</span>
                                                     {product.weight && (

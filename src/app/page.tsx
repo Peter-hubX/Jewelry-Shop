@@ -48,6 +48,10 @@ export default function Home() {
     setSelectedKarat(karat);
     setSelectedType(null);
     setActiveTab('products');
+    // Wait for tab switch animation then scroll to grid
+    setTimeout(() => {
+      productGridRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 600);
   };
 
   // Scroll to top when activeTab changes (but not when just filtering within products)
@@ -60,10 +64,10 @@ export default function Home() {
     setSelectedCategoryName(categoryNameAr);
     setSelectedKarat(null);
     setSelectedType(null);
-    // Small delay to let state update and re-render, then scroll
+    // Wait for framer-motion page transition (500ms) + render, then scroll
     setTimeout(() => {
       productGridRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 100);
+    }, 600);
   };
 
   return (

@@ -85,6 +85,13 @@ function calculateDynamicPrice(weight: number | null, karat: number, productType
 }
 
 export async function GET(request: NextRequest) {
+  const applyCORS = (res: NextResponse) => {
+    res.headers.set('Access-Control-Allow-Origin', '*');
+    res.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    return res;
+  };
+
   try {
     const { searchParams } = new URL(request.url);
     const category = searchParams.get('category');
@@ -114,8 +121,8 @@ export async function GET(request: NextRequest) {
     if (inStock === 'true') whereClause.inStock = true;
     if (search) {
       whereClause.OR = [
-        { nameAr: { contains: search, mode: 'insensitive' } },
-        { descriptionAr: { contains: search, mode: 'insensitive' } }
+        { nameAr: { contains: search } },
+        { descriptionAr: { contains: search } }
       ];
     }
     if (minPrice || maxPrice) {
@@ -150,11 +157,19 @@ export async function GET(request: NextRequest) {
       price: calculateDynamicPrice(product.weight, product.karat, product.productType, goldPrices),
     }));
 
-    return NextResponse.json(productsWithDynamicPrices);
+    return applyCORS(NextResponse.json(productsWithDynamicPrices));
   } catch (error) {
     console.error('Error fetching products:', error);
-    return NextResponse.json({ error: 'Failed to fetch products' }, { status: 500 });
+    return applyCORS(NextResponse.json({ error: 'Failed to fetch products' }, { status: 500 }));
   }
+}
+
+export async function OPTIONS() {
+  const response = new NextResponse(null, { status: 204 });
+  response.headers.set('Access-Control-Allow-Origin', '*');
+  response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  return response;
 }
 
 export async function POST(request: NextRequest) {

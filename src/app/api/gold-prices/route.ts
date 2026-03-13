@@ -144,6 +144,13 @@ export async function POST(request: NextRequest) {
 // ─── GET: return current prices ───────────────────────────────────────────────
 
 export async function GET() {
+  const applyCORS = (res: NextResponse) => {
+    res.headers.set('Access-Control-Allow-Origin', '*');
+    res.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    return res;
+  };
+
   try {
     const live = await fetchLiveGoldPrices();
     if (live) {
@@ -153,29 +160,63 @@ export async function GET() {
         update: { basePricePerGram: live.gram24k, usdRate: 0, source: live.source, lastFetchedAt: new Date() },
       }).catch(() => {});
 
-      return NextResponse.json({
+      return applyCORS(NextResponse.json({
         success: true,
-        data: { karat24Price: live.gram24k, karat21Price: live.gram21k, karat18Price: live.gram18k, basePricePerGram: live.gram24k, source: live.source, lastUpdated: new Date().toISOString() },
-      });
+        data: {
+          karat24Price: live.gram24k,
+          karat21Price: live.gram21k,
+          karat18Price: live.gram18k,
+          basePricePerGram: live.gram24k,
+          source: live.source,
+          lastUpdated: new Date().toISOString()
+        },
+      }));
     }
 
     // DB cache fallback
     const setting = await db.goldPriceSetting.findUnique({ where: { id: 'canonical' } });
     if (setting && setting.basePricePerGram > 0) {
       const base = Math.round(setting.basePricePerGram);
-      return NextResponse.json({
+      return applyCORS(NextResponse.json({
         success: true,
-        data: { karat24Price: base, karat21Price: Math.round(base * 21 / 24), karat18Price: Math.round(base * 18 / 24), basePricePerGram: base, source: setting.source + ' (cached)', lastUpdated: (setting.lastFetchedAt ?? setting.lastUpdatedAt).toISOString() },
-      });
+        data: {
+          karat24Price: base,
+          karat21Price: Math.round(base * 21 / 24),
+          karat18Price: Math.round(base * 18 / 24),
+          basePricePerGram: base,
+          source: setting.source + ' (cached)',
+          lastUpdated: (setting.lastFetchedAt ?? setting.lastUpdatedAt).toISOString()
+        },
+      }));
     }
 
     // Hardcoded last resort
-    return NextResponse.json({
+    return applyCORS(NextResponse.json({
       success: true,
-      data: { karat24Price: FALLBACK_PRICES.gram24k, karat21Price: FALLBACK_PRICES.gram21k, karat18Price: FALLBACK_PRICES.gram18k, basePricePerGram: FALLBACK_PRICES.gram24k, source: 'fallback', lastUpdated: new Date().toISOString() },
-    });
+      data: {
+        karat24Price: FALLBACK_PRICES.gram24k,
+        karat21Price: FALLBACK_PRICES.gram21k,
+        karat18Price: FALLBACK_PRICES.gram18k,
+        basePricePerGram: FALLBACK_PRICES.gram24k,
+        source: 'fallback',
+        lastUpdated: new Date().toISOString()
+      },
+    }));
   } catch (error) {
     console.error('Error fetching gold prices:', error);
-    return NextResponse.json({ success: false, error: 'Failed to fetch gold prices', message: error instanceof Error ? error.message : 'Unknown error' }, { status: 500 });
+    return applyCORS(NextResponse.json({
+      success: false,
+      error: 'Failed to fetch gold prices',
+      message: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500 }));
   }
+}
+
+// Add OPTIONS handler for this specific route
+export async function OPTIONS() {
+  const response = new NextResponse(null, { status: 204 });
+  response.headers.set('Access-Control-Allow-Origin', '*');
+  response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  return response;
 }

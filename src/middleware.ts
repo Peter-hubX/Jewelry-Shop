@@ -1,5 +1,5 @@
-import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
 
 // Simple in-memory rate limiting
 const rateLimitMap = new Map<string, { count: number; resetTime: number }>();
@@ -35,9 +35,12 @@ export function middleware(request: NextRequest) {
   if (method === 'OPTIONS') {
     const response = new NextResponse(null, { status: 204 });
     const requestOrigin = request.headers.get('origin');
+    const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS ?? 'http://localhost:3000').split(',');
     
     if (requestOrigin) {
-      response.headers.set('Access-Control-Allow-Origin', requestOrigin);
+      if (ALLOWED_ORIGINS.includes(requestOrigin)) {
+        response.headers.set('Access-Control-Allow-Origin', requestOrigin);
+      }
       response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
       response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
       response.headers.set('Access-Control-Allow-Credentials', 'true');
@@ -54,8 +57,11 @@ export function middleware(request: NextRequest) {
   // Apply CORS to API routes
   if (pathname.startsWith('/api/')) {
     const requestOrigin = request.headers.get('origin');
+    const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS ?? 'http://localhost:3000').split(',');
     if (requestOrigin) {
-      response.headers.set('Access-Control-Allow-Origin', requestOrigin);
+      if (ALLOWED_ORIGINS.includes(requestOrigin)) {
+        response.headers.set('Access-Control-Allow-Origin', requestOrigin);
+      }
     } else if (process.env.NODE_ENV === 'development') {
       response.headers.set('Access-Control-Allow-Origin', '*');
     }

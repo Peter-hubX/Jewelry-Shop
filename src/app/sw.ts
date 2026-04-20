@@ -1,6 +1,6 @@
 import { defaultCache } from "@serwist/next/worker";
 import type { PrecacheEntry, SerwistGlobalConfig } from "serwist";
-import { Serwist } from "serwist";
+import { NetworkOnly, Serwist } from "serwist";
 
 // This declares the value of `self.__WB_MANIFEST` to be of type `PrecacheEntry[]`.
 // This is required by Serwist to properly type the manifest.
@@ -17,7 +17,14 @@ const serwist = new Serwist({
   skipWaiting: true,
   clientsClaim: true,
   navigationPreload: true,
-  runtimeCaching: defaultCache,
+  runtimeCaching: [
+    {
+      matcher: ({ sameOrigin, url: { pathname } }) => sameOrigin && pathname.startsWith('/api/gold-prices'),
+      method: 'GET',
+      handler: new NetworkOnly(),
+    },
+    ...defaultCache,
+  ],
 });
 
 serwist.addEventListeners();

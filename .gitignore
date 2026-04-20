@@ -37,6 +37,9 @@ yarn-error.log*
 .env.test.local
 .env.production.local
 
+# Service worker build output
+public/sw.js
+
 # Databases
 *.db
 *.db-journal

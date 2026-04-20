@@ -1,63 +1,6 @@
 import { db } from '@/lib/db';
+import { getLiveGram24kPrice } from '@/lib/goldPrices';
 import { NextRequest, NextResponse } from 'next/server';
-
-const TROY_OUNCE_GRAMS = 31.1035;
-const FALLBACK_24K = 8617; // EGP per gram fallback
-
-/** Get live 24K price per gram from GoldAPI, falling back to DB cache, then hardcoded */
-async function getLiveGram24kPrice(): Promise<{ gram24k: number; gram21k: number; gram18k: number }> {
-  // 1. Try GoldAPI
-  const apiKey = process.env.GOLDAPI_KEY;
-  if (apiKey) {
-    try {
-      const res = await fetch('https://www.goldapi.io/api/XAU/EGP', {
-        headers: { 'x-access-token': apiKey, 'Content-Type': 'application/json' },
-        next: { revalidate: 300 },
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.price_gram_24k && data.price_gram_21k && data.price_gram_18k) {
-          return {
-            gram24k: Math.round(data.price_gram_24k),
-            gram21k: Math.round(data.price_gram_21k),
-            gram18k: Math.round(data.price_gram_18k),
-          };
-        }
-      }
-    } catch { /* fall through */ }
-  }
-
-  // 2. Try MetalpriceAPI
-  const metalKey = process.env.METALPRICEAPI_KEY;
-  if (metalKey) {
-    try {
-      const res = await fetch(
-        `https://api.metalpriceapi.com/v1/latest?api_key=${metalKey}&base=XAU&currencies=EGP`,
-        { next: { revalidate: 300 } }
-      );
-      if (res.ok) {
-        const data = await res.json();
-        const pricePerOz = data?.rates?.EGP;
-        if (pricePerOz > 0) {
-          const gram24k = Math.round(pricePerOz / TROY_OUNCE_GRAMS);
-          return { gram24k, gram21k: Math.round(gram24k * 21 / 24), gram18k: Math.round(gram24k * 18 / 24) };
-        }
-      }
-    } catch { /* fall through */ }
-  }
-
-  // 3. DB cache
-  try {
-    const setting = await db.goldPriceSetting.findUnique({ where: { id: 'canonical' } });
-    if (setting && setting.basePricePerGram > 0) {
-      const gram24k = Math.round(setting.basePricePerGram);
-      return { gram24k, gram21k: Math.round(gram24k * 21 / 24), gram18k: Math.round(gram24k * 18 / 24) };
-    }
-  } catch { /* fall through */ }
-
-  // 4. Hardcoded fallback
-  return { gram24k: FALLBACK_24K, gram21k: Math.round(FALLBACK_24K * 21 / 24), gram18k: Math.round(FALLBACK_24K * 18 / 24) };
-}
 
 /** Calculate dynamic price for a product based on live gold price */
 function calculateDynamicPrice(weight: number | null, karat: number, productType: string | null, goldPrices: { gram24k: number; gram21k: number; gram18k: number }): number | null {
@@ -68,7 +11,7 @@ function calculateDynamicPrice(weight: number | null, karat: number, productType
     case 24: pricePerGram = goldPrices.gram24k; break;
     case 21: pricePerGram = goldPrices.gram21k; break;
     case 18: pricePerGram = goldPrices.gram18k; break;
-    default: pricePerGram = goldPrices.gram24k;
+    default: return null;
   }
 
   // Craftsmanship premium: bars have lower premium than jewelry
@@ -76,9 +19,9 @@ function calculateDynamicPrice(weight: number | null, karat: number, productType
   if (karat === 24) {
     premium = weight >= 10 ? 1.02 : 1.05;
   } else if (productType === 'bar') {
-    premium = karat === 21 ? 1.08 : 1.10;
+    premium = karat === 21 ? 1.08 : 1.1;
   } else {
-    premium = karat === 21 ? 1.20 : 1.25;
+    premium = karat === 21 ? 1.2 : 1.25;
   }
 
   return Math.round(weight * pricePerGram * premium);
@@ -106,7 +49,8 @@ export async function GET(request: NextRequest) {
     const maxWeight = searchParams.get('maxWeight');
     const inStock = searchParams.get('inStock');
     const sortBy = searchParams.get('sortBy') || 'createdAt';
-    const sortOrder = searchParams.get('sortOrder') || 'desc';
+    const rawOrder = searchParams.get('sortOrder') ?? 'desc';
+    const sortOrder = ['asc', 'desc'].includes(rawOrder) ? rawOrder : 'desc';
 
     let whereClause: any = {};
 
@@ -175,7 +119,9 @@ export async function OPTIONS() {
 export async function POST(request: NextRequest) {
   try {
     const authHeader = request.headers.get('authorization');
-    if (!authHeader || authHeader !== `Bearer ${process.env.ADMIN_API_SECRET || 'dev-secret'}`) {
+    const secret = process.env.ADMIN_API_SECRET;
+    if (!secret) throw new Error('ADMIN_API_SECRET is not configured');
+    if (!authHeader || authHeader !== `Bearer ${secret}`) {
       return NextResponse.json({ error: 'Unauthorized. Admin access required.' }, { status: 401 });
     }
 

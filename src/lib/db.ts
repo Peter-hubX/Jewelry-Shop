@@ -1,5 +1,5 @@
-import { PrismaClient } from '@prisma/client'
-import path from 'path'
+import { PrismaClient } from '@prisma/client';
+import path from 'node:path';
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined
@@ -13,7 +13,7 @@ export const db =
     log: ['query'],
     datasources: {
       db: {
-        url: `file:${dbPath}`,
+        url: process.env.DATABASE_URL ?? `file:${dbPath}`,
       },
     },
   })

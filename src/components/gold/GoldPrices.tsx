@@ -6,27 +6,28 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { RefreshCw } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
-// Egyptian gold market hours: Sunday–Thursday 10:00–18:00 Cairo time (UTC+2)
+// Egyptian gold market hours: Sunday–Thursday 10:00–18:00 Cairo time
 function getMarketStatus(): { isOpen: boolean; label: string; nextEvent: string } {
     const now = new Date();
-    // Cairo is UTC+2
-    const cairoOffset = 2 * 60;
-    const utcMinutes = now.getUTCHours() * 60 + now.getUTCMinutes();
-    const cairoMinutes = (utcMinutes + cairoOffset) % (24 * 60);
-    const cairoDay = new Date(now.getTime() + cairoOffset * 60000).getUTCDay(); // 0=Sun
+    const parts = new Intl.DateTimeFormat('en-US', {
+        timeZone: 'Africa/Cairo',
+        hour12: false,
+        weekday: 'short',
+        hour: '2-digit',
+        minute: '2-digit',
+    }).formatToParts(now);
 
-    const openMinutes = 10 * 60;  // 10:00
-    const closeMinutes = 18 * 60; // 18:00
-    const isWeekday = cairoDay >= 0 && cairoDay <= 4; // Sun–Thu
+    const hour = Number(parts.find((part) => part.type === 'hour')?.value ?? '0');
+    const minute = Number(parts.find((part) => part.type === 'minute')?.value ?? '0');
+    const weekday = parts.find((part) => part.type === 'weekday')?.value ?? 'Sun';
+
+    const cairoMinutes = hour * 60 + minute;
+    const openMinutes = 10 * 60;
+    const closeMinutes = 18 * 60;
+    const isWeekday = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu'].includes(weekday);
     const isOpen = isWeekday && cairoMinutes >= openMinutes && cairoMinutes < closeMinutes;
 
     const pad = (n: number) => String(n).padStart(2, '0');
-    const fmt = (totalMins: number) => {
-        const diff = totalMins * 60000;
-        const h = Math.floor(Math.abs(totalMins) / 60);
-        const m = Math.abs(totalMins) % 60;
-        return `${pad(h)}:${pad(m)}`;
-    };
 
     let nextEvent = '';
     if (isOpen) {
@@ -54,6 +55,7 @@ export function GoldPrices() {
     const [countdown, setCountdown] = useState<string>('');
 
     const fetchGoldPrices = async () => {
+        if (isUpdating) return;
         setIsUpdating(true);
         try {
             const response = await fetch('/api/gold-prices');

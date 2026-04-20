@@ -1,5 +1,5 @@
-import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { NextRequest, NextResponse } from 'next/server';
 
 export async function GET() {
   try {
@@ -23,7 +23,9 @@ export async function POST(request: NextRequest) {
   try {
     // Security: Check for authentication token
     const authHeader = request.headers.get('authorization');
-    if (!authHeader || authHeader !== `Bearer ${process.env.ADMIN_API_SECRET || 'dev-secret'}`) {
+    const secret = process.env.ADMIN_API_SECRET;
+    if (!secret) throw new Error('ADMIN_API_SECRET is not configured');
+    if (!authHeader || authHeader !== `Bearer ${secret}`) {
       return NextResponse.json(
         { error: 'Unauthorized. Admin access required.' },
         { status: 401 }

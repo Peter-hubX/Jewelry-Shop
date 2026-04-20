@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 import { AnimatePresence, motion } from 'framer-motion';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import ProductQuickView from './ProductQuickView';
 
 interface Product {
@@ -50,24 +50,35 @@ export function ProductGrid({ initialKarat, initialType, initialCategoryName }: 
         }
     }, [initialCategoryName]);
 
+    const abortRef = useRef<AbortController | null>(null);
+
     const fetchProducts = async (karat?: number, type?: string, categoryName?: string) => {
+        abortRef.current?.abort();
+        const controller = new AbortController();
+        abortRef.current = controller;
         setLoading(true);
+
         try {
             const params = new URLSearchParams();
             if (karat) params.set('karat', karat.toString());
             if (type) params.set('type', type);
             if (categoryName) params.set('category', categoryName);
 
-            const response = await fetch(`/api/products?${params.toString()}`);
+            const response = await fetch(`/api/products?${params.toString()}`, {
+                signal: controller.signal,
+            });
             if (!response.ok) throw new Error(`Status ${response.status}`);
             const text = await response.text();
             const data = text ? JSON.parse(text) : [];
             setProducts(Array.isArray(data) ? data : []);
         } catch (error) {
+            if (error instanceof Error && error.name === 'AbortError') return;
             console.error('Error fetching products:', error);
             setProducts([]);
         } finally {
-            setLoading(false);
+            if (abortRef.current === controller) {
+                setLoading(false);
+            }
         }
     };
 

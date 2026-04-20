@@ -1,59 +1,7 @@
 // src/app/api/products/[id]/route.ts
 import { db } from '@/lib/db';
+import { getLiveGram24kPrice } from '@/lib/goldPrices';
 import { NextRequest, NextResponse } from 'next/server';
-
-const TROY_OUNCE_GRAMS = 31.1035;
-const FALLBACK_24K = 8617;
-
-async function getLiveGram24kPrice(): Promise<{ gram24k: number; gram21k: number; gram18k: number }> {
-    const apiKey = process.env.GOLDAPI_KEY;
-    if (apiKey) {
-        try {
-            const res = await fetch('https://www.goldapi.io/api/XAU/EGP', {
-                headers: { 'x-access-token': apiKey, 'Content-Type': 'application/json' },
-                next: { revalidate: 300 },
-            });
-            if (res.ok) {
-                const data = await res.json();
-                if (data.price_gram_24k && data.price_gram_21k && data.price_gram_18k) {
-                    return {
-                        gram24k: Math.round(data.price_gram_24k),
-                        gram21k: Math.round(data.price_gram_21k),
-                        gram18k: Math.round(data.price_gram_18k),
-                    };
-                }
-            }
-        } catch { /* fall through */ }
-    }
-
-    const metalKey = process.env.METALPRICEAPI_KEY;
-    if (metalKey) {
-        try {
-            const res = await fetch(
-                `https://api.metalpriceapi.com/v1/latest?api_key=${metalKey}&base=XAU&currencies=EGP`,
-                { next: { revalidate: 300 } }
-            );
-            if (res.ok) {
-                const data = await res.json();
-                const pricePerOz = data?.rates?.EGP;
-                if (pricePerOz > 0) {
-                    const gram24k = Math.round(pricePerOz / TROY_OUNCE_GRAMS);
-                    return { gram24k, gram21k: Math.round(gram24k * 21 / 24), gram18k: Math.round(gram24k * 18 / 24) };
-                }
-            }
-        } catch { /* fall through */ }
-    }
-
-    try {
-        const setting = await db.goldPriceSetting.findUnique({ where: { id: 'canonical' } });
-        if (setting && setting.basePricePerGram > 0) {
-            const gram24k = Math.round(setting.basePricePerGram);
-            return { gram24k, gram21k: Math.round(gram24k * 21 / 24), gram18k: Math.round(gram24k * 18 / 24) };
-        }
-    } catch { /* fall through */ }
-
-    return { gram24k: FALLBACK_24K, gram21k: Math.round(FALLBACK_24K * 21 / 24), gram18k: Math.round(FALLBACK_24K * 18 / 24) };
-}
 
 function calculateDynamicPrice(
     weight: number | null,
@@ -68,16 +16,16 @@ function calculateDynamicPrice(
         case 24: pricePerGram = goldPrices.gram24k; break;
         case 21: pricePerGram = goldPrices.gram21k; break;
         case 18: pricePerGram = goldPrices.gram18k; break;
-        default: pricePerGram = goldPrices.gram24k;
+        default: return null;
     }
 
     let premium: number;
     if (karat === 24) {
         premium = weight >= 10 ? 1.02 : 1.05;
     } else if (productType === 'bar') {
-        premium = karat === 21 ? 1.08 : 1.10;
+        premium = karat === 21 ? 1.08 : 1.1;
     } else {
-        premium = karat === 21 ? 1.20 : 1.25;
+        premium = karat === 21 ? 1.2 : 1.25;
     }
 
     return Math.round(weight * pricePerGram * premium);
@@ -149,7 +97,9 @@ export async function PUT(
 ) {
     try {
         const authHeader = request.headers.get('authorization');
-        if (!authHeader || authHeader !== `Bearer ${process.env.ADMIN_API_SECRET || 'dev-secret'}`) {
+        const secret = process.env.ADMIN_API_SECRET;
+        if (!secret) throw new Error('ADMIN_API_SECRET is not configured');
+        if (!authHeader || authHeader !== `Bearer ${secret}`) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
@@ -193,7 +143,9 @@ export async function DELETE(
 ) {
     try {
         const authHeader = request.headers.get('authorization');
-        if (!authHeader || authHeader !== `Bearer ${process.env.ADMIN_API_SECRET || 'dev-secret'}`) {
+        const secret = process.env.ADMIN_API_SECRET;
+        if (!secret) throw new Error('ADMIN_API_SECRET is not configured');
+        if (!authHeader || authHeader !== `Bearer ${secret}`) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 

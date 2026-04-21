@@ -40,10 +40,10 @@ const applyCORS = (res: NextResponse) => {
 
 export async function GET(
     _request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const { id } = params;
+        const { id } = await params;
 
         const [product, goldPrices] = await Promise.all([
             db.product.findUnique({
@@ -93,7 +93,7 @@ export async function OPTIONS() {
 
 export async function PUT(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const authHeader = request.headers.get('authorization');
@@ -103,7 +103,7 @@ export async function PUT(
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const { id } = params;
+        const { id } = await params;
         const body = await request.json();
 
         const existing = await db.product.findUnique({ where: { id } });
@@ -139,7 +139,7 @@ export async function PUT(
 
 export async function DELETE(
     request: NextRequest,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
         const authHeader = request.headers.get('authorization');
@@ -149,7 +149,7 @@ export async function DELETE(
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const { id } = params;
+        const { id } = await params;
         const existing = await db.product.findUnique({ where: { id } });
         if (!existing) {
             return applyCORS(NextResponse.json({ error: 'Product not found' }, { status: 404 }));

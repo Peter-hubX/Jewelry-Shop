@@ -39,6 +39,7 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const category = searchParams.get('category');
     const karat = searchParams.get('karat');
+    const karats = searchParams.getAll('karat'); // Support multiple karat parameters
     const productType = searchParams.get('type');
     const featured = searchParams.get('featured');
     const type = searchParams.get('categoryType');
@@ -51,11 +52,22 @@ export async function GET(request: NextRequest) {
     const sortBy = searchParams.get('sortBy') || 'createdAt';
     const rawOrder = searchParams.get('sortOrder') ?? 'desc';
     const sortOrder = ['asc', 'desc'].includes(rawOrder) ? rawOrder : 'desc';
+    
+    const pageParam = searchParams.get('page');
+    const page = pageParam ? parseInt(pageParam) : undefined;
+    const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : undefined;
 
     let whereClause: any = {};
 
     if (category) whereClause.category = { nameAr: category };
-    if (karat) {
+    
+    // Handle multiple karat values
+    if (karats.length > 0) {
+      const karatNums = karats.map(k => Number.parseInt(k)).filter(k => !Number.isNaN(k) && [18, 21, 24].includes(k));
+      if (karatNums.length > 0) {
+        whereClause.karat = { in: karatNums };
+      }
+    } else if (karat) {
       const karatNum = Number.parseInt(karat);
       if (!Number.isNaN(karatNum) && [18, 21, 24].includes(karatNum)) whereClause.karat = karatNum;
     }
@@ -82,15 +94,37 @@ export async function GET(request: NextRequest) {
 
     let orderBy: any = {};
     switch (sortBy) {
-      case 'price': orderBy = { price: sortOrder }; break;
+      case 'price-asc': 
+      case 'price': 
+        orderBy = [{ price: 'asc' }, { weight: 'asc' }]; 
+        break;
+      case 'price-desc': 
+        orderBy = [{ price: 'desc' }, { weight: 'desc' }]; 
+        break;
       case 'weight': orderBy = { weight: sortOrder }; break;
       case 'name': orderBy = { nameAr: sortOrder }; break;
-      default: orderBy = { createdAt: sortOrder };
+      case 'newest': orderBy = { createdAt: 'desc' }; break;
+      case 'trending':
+      default: 
+        orderBy = [{ featured: 'desc' }, { createdAt: 'desc' }];
+        break;
+    }
+
+    let skip: number | undefined = undefined;
+    if (page && limit) {
+      skip = (page - 1) * limit;
     }
 
     // Fetch products and live gold prices in parallel
-    const [products, goldPrices] = await Promise.all([
-      db.product.findMany({ where: whereClause, include: { category: true }, orderBy }),
+    const [products, totalCount, goldPrices] = await Promise.all([
+      db.product.findMany({ 
+        where: whereClause, 
+        include: { category: true }, 
+        orderBy,
+        take: limit,
+        skip
+      }),
+      page ? db.product.count({ where: whereClause }) : Promise.resolve(0),
       getLiveGram24kPrice()
     ]);
 
@@ -100,6 +134,15 @@ export async function GET(request: NextRequest) {
       // Always calculate price dynamically from live gold price
       price: calculateDynamicPrice(product.weight, product.karat, product.productType, goldPrices),
     }));
+
+    if (page) {
+      return applyCORS(NextResponse.json({
+        data: productsWithDynamicPrices,
+        total: totalCount,
+        page,
+        totalPages: limit ? Math.ceil(totalCount / limit) : 1
+      }));
+    }
 
     return applyCORS(NextResponse.json(productsWithDynamicPrices));
   } catch (error) {

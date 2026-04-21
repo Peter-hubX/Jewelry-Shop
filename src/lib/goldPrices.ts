@@ -130,27 +130,27 @@ export async function updateGoldPricesInDb(live: LivePrices | null) {
   const goldBars = await db.product.findMany({ where: { karat: 24, productType: 'bar' } });
   const updatedBars: { id: string; name: string; weight: number; newPrice: number }[] = [];
 
-  for (const bar of goldBars) {
-    if (!bar.weight || bar.weight <= 0) continue;
-    const premium = bar.weight >= 10 ? 1.02 : 1.05;
-    const totalPrice = Math.round(bar.weight * prices.gram24k * premium);
-    await db.product.update({ where: { id: bar.id }, data: { price: totalPrice, updatedAt: new Date() } });
-    updatedBars.push({ id: bar.id, name: bar.nameAr, weight: bar.weight, newPrice: totalPrice });
-  }
+  const validBars = goldBars.filter((b) => b.weight && b.weight > 0);
+  const barUpdates = validBars.map((bar) => {
+    const premium = bar.weight! >= 10 ? 1.02 : 1.05;
+    const totalPrice = Math.round(bar.weight! * prices.gram24k * premium);
+    updatedBars.push({ id: bar.id, name: bar.nameAr, weight: bar.weight!, newPrice: totalPrice });
+    return db.product.update({ where: { id: bar.id }, data: { price: totalPrice, updatedAt: new Date() } });
+  });
 
   const products21K = await db.product.findMany({ where: { karat: 21 } });
-  for (const p of products21K) {
-    if (!p.weight || p.weight <= 0) continue;
+  const p21Updates = products21K.filter(p => p.weight && p.weight > 0).map((p) => {
     const premium = p.productType === 'bar' ? 1.08 : 1.2;
-    await db.product.update({ where: { id: p.id }, data: { price: Math.round(p.weight * prices.gram21k * premium), updatedAt: new Date() } });
-  }
+    return db.product.update({ where: { id: p.id }, data: { price: Math.round(p.weight! * prices.gram21k * premium), updatedAt: new Date() } });
+  });
 
   const products18K = await db.product.findMany({ where: { karat: 18 } });
-  for (const p of products18K) {
-    if (!p.weight || p.weight <= 0) continue;
+  const p18Updates = products18K.filter(p => p.weight && p.weight > 0).map((p) => {
     const premium = p.productType === 'bar' ? 1.1 : 1.25;
-    await db.product.update({ where: { id: p.id }, data: { price: Math.round(p.weight * prices.gram18k * premium), updatedAt: new Date() } });
-  }
+    return db.product.update({ where: { id: p.id }, data: { price: Math.round(p.weight! * prices.gram18k * premium), updatedAt: new Date() } });
+  });
+
+  await db.$transaction([...barUpdates, ...p21Updates, ...p18Updates]);
 
   await db.goldPriceSetting.upsert({
     where: { id: 'canonical' },

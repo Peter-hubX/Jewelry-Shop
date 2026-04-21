@@ -8,7 +8,7 @@ const withSerwist = withSerwistInit({
 
 const nextConfig: NextConfig = {
   output: "standalone",
-  // Allow Next.js <Image> to serve images from the local public folder
+  // Allow Next.js <Image> to heavily optimize incoming images
   images: {
     unoptimized: true,
   },

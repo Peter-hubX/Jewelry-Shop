@@ -21,6 +21,8 @@ function rateLimit(ip: string, limit: number, window: number): boolean {
   return true;
 }
 
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS ?? 'http://localhost:3000').split(',');
+
 export function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   const origin = request.headers.get('origin') || 'no-origin';
@@ -35,7 +37,6 @@ export function middleware(request: NextRequest) {
   if (method === 'OPTIONS') {
     const response = new NextResponse(null, { status: 204 });
     const requestOrigin = request.headers.get('origin');
-    const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS ?? 'http://localhost:3000').split(',');
     
     if (requestOrigin) {
       if (ALLOWED_ORIGINS.includes(requestOrigin)) {
@@ -57,7 +58,6 @@ export function middleware(request: NextRequest) {
   // Apply CORS to API routes
   if (pathname.startsWith('/api/')) {
     const requestOrigin = request.headers.get('origin');
-    const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS ?? 'http://localhost:3000').split(',');
     if (requestOrigin) {
       if (ALLOWED_ORIGINS.includes(requestOrigin)) {
         response.headers.set('Access-Control-Allow-Origin', requestOrigin);

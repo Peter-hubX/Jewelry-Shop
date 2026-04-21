@@ -47,7 +47,7 @@ export async function GET() {
         where: { id: 'canonical' },
         create: { id: 'canonical', basePricePerGram: live.gram24k, usdRate: 0, source: live.source },
         update: { basePricePerGram: live.gram24k, usdRate: 0, source: live.source, lastFetchedAt: new Date() },
-      }).catch(() => {});
+      }).catch((e) => console.error('DB cache update failed:', e));
 
       return applyCORS(NextResponse.json({
         success: true,

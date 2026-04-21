@@ -1,11 +1,8 @@
 import { PrismaClient } from '@prisma/client';
 
-import path from 'node:path';
 
-// Force absolute path for DATABASE_URL
-const dbAbsolutePath = path.join(process.cwd(), 'db', 'custom.db');
-process.env.DATABASE_URL = `file:${dbAbsolutePath}`;
-console.log('Forced DATABASE_URL:', process.env.DATABASE_URL);
+// Use the same DATABASE_URL as the app
+console.log('Using DATABASE_URL:', process.env.DATABASE_URL);
 
 const prisma = new PrismaClient();
 
@@ -82,9 +79,8 @@ async function main() {
     }
   });
 
-  // Create sample products
-  await prisma.product.createMany({
-    data: [
+  console.log('Database seeded successfully!');
+  const productsData = [
       // 18K Products
       {
         name: 'Modern Gold Ring',
@@ -484,8 +480,14 @@ async function main() {
         featured: true,
         images: JSON.stringify(['/images/24k-bar-1g.jpg'])
       }
-    ]
-  });
+    ];
+
+  // Create products one by one (SQLite doesn't support createMany)
+  for (const productData of productsData) {
+    await prisma.product.create({
+      data: productData
+    });
+  }
 
   console.log('Database seeded successfully!');
 }

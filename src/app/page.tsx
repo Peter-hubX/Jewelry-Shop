@@ -6,6 +6,7 @@ import { Categories } from '@/components/home/Categories';
 import { Contact } from '@/components/home/Contact';
 import { Hero } from '@/components/home/Hero';
 import { TrendingCollections } from '@/components/home/TrendingCollections';
+import { Wishlist } from '@/components/home/Wishlist';
 import { Footer } from '@/components/layout/Footer';
 import { Navbar } from '@/components/layout/Navbar';
 import { ProductGrid } from '@/components/products/ProductGrid';
@@ -28,7 +29,7 @@ export default function Home() {
     }
   }, []);
 
-  const [activeTab, setActiveTab] = useState<'home' | 'products' | 'gold-info' | 'about' | 'contact'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'products' | 'gold-info' | 'about' | 'contact' | 'wishlist'>('home');
   const [selectedKarat, setSelectedKarat] = useState<number | null>(null);
   const [selectedType, setSelectedType] = useState<string | null>(null);
   const [selectedCategoryName, setSelectedCategoryName] = useState<string | null>(null);
@@ -40,8 +41,43 @@ export default function Home() {
     'دعم واتساب فوري'
   ];
 
+  // Read tab parameter from URL on mount
+  useEffect(() => {
+    try {
+      const url = new URL(window.location.href);
+      const tabParam = url.searchParams.get('tab');
+      if (tabParam && ['home', 'products', 'gold-info', 'about', 'contact', 'wishlist'].includes(tabParam)) {
+        setActiveTab(tabParam as 'home' | 'products' | 'gold-info' | 'about' | 'contact' | 'wishlist');
+      }
+    } catch (e) {
+      // ignore
+    }
+  }, []);
+
+  const handleProductClick = (product: any) => {
+    // Navigate to product detail page
+    window.location.href = `/product/${product.id}`;
+  };
+
+  const handleTabChange = (tab: typeof activeTab) => {
+    setActiveTab(tab);
+    // reflect in URL so other pages (product detail) can navigate here via ?tab=
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set('tab', tab);
+      window.history.pushState({}, '', url.toString());
+    } catch (e) {
+      // ignore
+    }
+  };
+
   const handleExploreClick = () => {
+    // Switch to products tab and scroll to product grid
     setActiveTab('products');
+    // Trigger recompilation
+    setTimeout(() => {
+      productGridRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 600);
   };
 
   const handleCategoryClick = (karat: number) => {
@@ -81,7 +117,7 @@ export default function Home() {
         ))}
       </aside>
 
-      <Navbar activeTab={activeTab} onTabChange={setActiveTab} />
+      <Navbar activeTab={activeTab} onTabChange={handleTabChange} />
 
       <main className="pt-20">
         <AnimatePresence mode="wait">
@@ -93,7 +129,7 @@ export default function Home() {
               exit={{ opacity: 0 }}
               transition={{ duration: 0.5 }}
             >
-              <Hero onExploreClick={handleExploreClick} />
+              <Hero onExploreClick={handleExploreClick} onProductClick={handleProductClick} />
               <Categories selectedKarat={selectedKarat} onSelectKarat={handleCategoryClick} />
             </motion.div>
           )}
@@ -110,6 +146,18 @@ export default function Home() {
               <div ref={productGridRef}>
                 <ProductGrid initialKarat={selectedKarat} initialType={selectedType} initialCategoryName={selectedCategoryName} />
               </div>
+            </motion.div>
+          )}
+
+          {activeTab === 'wishlist' && (
+            <motion.div
+              key="wishlist"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.5 }}
+            >
+              <Wishlist />
             </motion.div>
           )}
 

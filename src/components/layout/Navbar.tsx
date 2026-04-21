@@ -1,13 +1,13 @@
 'use client';
 
-import { useState } from 'react';
-import { Menu, X } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Menu, X } from 'lucide-react';
+import { useState } from 'react';
 
 interface NavbarProps {
-    activeTab: 'home' | 'products' | 'gold-info' | 'about' | 'contact';
-    onTabChange: (tab: 'home' | 'products' | 'gold-info' | 'about' | 'contact') => void;
+    activeTab: 'home' | 'products' | 'gold-info' | 'about' | 'contact' | 'wishlist';
+    onTabChange: (tab: 'home' | 'products' | 'gold-info' | 'about' | 'contact' | 'wishlist') => void;
 }
 
 export function Navbar({ activeTab, onTabChange }: NavbarProps) {
@@ -16,6 +16,7 @@ export function Navbar({ activeTab, onTabChange }: NavbarProps) {
     const navItems = [
         { id: 'home', label: 'الرئيسية' },
         { id: 'products', label: 'المنتجات' },
+        { id: 'wishlist', label: 'المفضلة' },
         { id: 'gold-info', label: 'أسعار الذهب' },
         { id: 'about', label: 'من نحن' },
         { id: 'contact', label: 'تواصل معنا' },
@@ -27,7 +28,7 @@ export function Navbar({ activeTab, onTabChange }: NavbarProps) {
     };
 
     return (
-        <nav className="fixed top-0 w-full bg-black/90 backdrop-blur-md z-50 border-b border-yellow-600/20 shadow-lg shadow-yellow-900/5">
+        <nav className="fixed top-0 w-full bg-black/90 backdrop-blur-md z-50 border-b border-yellow-600/20 shadow-lg shadow-yellow-900/5" suppressHydrationWarning>
             <div className="container mx-auto px-4">
                 <div className="flex items-center justify-between h-20">
                     {/* Logo */}

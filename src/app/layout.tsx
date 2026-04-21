@@ -1,6 +1,7 @@
 import { InstallPrompt } from "@/components/pwa/InstallPrompt";
 import { ReloadPrompt } from "@/components/pwa/ReloadPrompt";
 import { Toaster } from "@/components/ui/toaster";
+import { WishlistProvider } from "@/context/WishlistContext";
 import type { Metadata, Viewport } from "next";
 import { Cairo } from "next/font/google";
 import "./globals.css";
@@ -68,13 +69,15 @@ export const viewport: Viewport = {
 
 export default function RootLayout({
   children,
-}: {
+}: Readonly<{
   children: React.ReactNode;
-}) {
+}>) {
   return (
-    <html lang="ar" dir="rtl" className={cairo.variable}>
+    <html lang="ar" dir="rtl" className={cairo.variable} suppressHydrationWarning>
       <body className={cairo.className}>
-        {children}
+        <WishlistProvider>
+          {children}
+        </WishlistProvider>
         <Toaster />
         <InstallPrompt />
         <ReloadPrompt />

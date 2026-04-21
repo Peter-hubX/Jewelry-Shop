@@ -1,0 +1,25 @@
+   ▲ Next.js 15.5.15
+   - Environments: .env
+
+   Creating an optimized production build ...
+ ✓ (serwist) Bundling the service worker script with the URL '/sw.js' and the scope '/'...
+ ✓ Compiled successfully in 2.1s
+   Linting and checking validity of types ...
+
+./src/hooks/use-toast.ts
+21:1  Warning: Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-unused-vars').
+
+info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/docs/app/api-reference/config/eslint#disabling-rules
+Failed to compile.
+
+./index.tsx:6:8
+Type error: Cannot find module 'react-native' or its corresponding type declarations.
+
+[0m [90m 4 |[39m   [33mScrollView[39m[33m,[39m [33mView[39m[33m,[39m [33mText[39m[33m,[39m [33mStyleSheet[39m[33m,[39m
+ [90m 5 |[39m   [33mPressable[39m[33m,[39m [33mActivityIndicator[39m[33m,[39m [33mDimensions[39m[33m,[39m
+[31m[1m>[22m[39m[90m 6 |[39m } [36mfrom[39m [32m'react-native'[39m[33m;[39m
+ [90m   |[39m        [31m[1m^[22m[39m
+ [90m 7 |[39m [36mimport[39m { [33mLinearGradient[39m } [36mfrom[39m [32m'expo-linear-gradient'[39m[33m;[39m
+ [90m 8 |[39m [36mimport[39m { [33mImage[39m } [36mfrom[39m [32m'expo-image'[39m[33m;[39m
+ [90m 9 |[39m [36mimport[39m { router } [36mfrom[39m [32m'expo-router'[39m[33m;[39m[0m
+Next.js build worker exited with code: 1 and signal: null

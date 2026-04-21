@@ -1,14 +1,32 @@
 'use client';
 
 import { Button } from '@/components/ui/button';
-import { ChevronDown } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { ChevronDown } from 'lucide-react';
+import { ProductCarousel } from './ProductCarousel';
+
+interface Product {
+    id: string;
+    nameAr: string;
+    descriptionAr: string;
+    price: number | null;
+    karat: number;
+    productType: string | null;
+    category: {
+        nameAr: string;
+        type: string;
+    };
+    images: string[];
+    featured: boolean;
+    weight?: number | null;
+}
 
 interface HeroProps {
     onExploreClick: () => void;
+    onProductClick?: (product: Product) => void;
 }
 
-export function Hero({ onExploreClick }: HeroProps) {
+export function Hero({ onExploreClick, onProductClick }: HeroProps) {
     return (
         <section className="relative min-h-screen flex items-center justify-center overflow-hidden">
             {/* Background with overlay */}
@@ -70,6 +88,11 @@ export function Hero({ onExploreClick }: HeroProps) {
                     </Button>
                 </motion.div>
             </div>
+
+            {/* Product Carousel */}
+            {onProductClick && (
+                <ProductCarousel onProductClick={onProductClick} />
+            )}
 
             <motion.div
                 initial={{ opacity: 0 }}

@@ -8,6 +8,7 @@ import { Separator } from '@/components/ui/separator';
 import { useWishlistContext } from '@/context/WishlistContext';
 import { translateProductType } from '@/lib/productTypeTranslations';
 import { cn } from '@/lib/utils';
+import type { Product } from '@/types/product';
 import { motion } from 'framer-motion';
 import {
     ArrowRight,
@@ -15,54 +16,35 @@ import {
     ChevronRight,
     Mail,
     MessageCircle,
-    Phone
+    Phone,
 } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import { CONTACT_INFO } from '../../../../michiel-jewelry-app/constants/Config';
 
-interface Product {
-    id: string;
-    name: string;
-    nameAr: string;
-    description: string;
-    descriptionAr: string;
-    price: number | null;
-    karat: number;
-    purity: string | null;
-    productType: string | null;
-    images: string[];
-    inStock: boolean;
-    featured: boolean;
-    weight: number | null;
-    certificate: string | null;
-    manufacturer: string | null;
-    category: {
-        id: string;
-        name: string;
-        nameAr: string;
-        type: string;
-    };
-}
+// ─── Tab type (kept in sync with page.tsx) ────────────────────────────────────
+type ActiveTab = 'home' | 'products' | 'gold-info' | 'about' | 'contact' | 'wishlist';
 
 export default function ProductDetail() {
-    const params = useParams();
-    const router = useRouter();
-    const [product, setProduct] = useState<Product | null>(null);
-    const [loading, setLoading] = useState(true);
+    const params  = useParams();
+    const router  = useRouter();
+
+    const [product, setProduct]                 = useState<Product | null>(null);
+    const [loading, setLoading]                 = useState(true);
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
-    const [activeTab, setActiveTab] = useState<'home' | 'products' | 'gold-info' | 'about' | 'contact' | 'wishlist'>('products');
+
+    // Local tab state — only used so Navbar renders the correct active state.
+    // Navigation back to the home page uses router.push (SPAGHETTI-03 fix).
+    const [activeTab, setActiveTab] = useState<ActiveTab>('products');
+
     const { isWishlisted, toggle } = useWishlistContext();
 
-    const handleTabChange = (tab: typeof activeTab) => {
-        // update local active tab state and navigate back to home with tab param
-        // Use window.location.href for a full navigation to avoid hydration mismatches
+    // SPAGHETTI-03 fix: use Next.js router.push instead of window.location.href
+    // to avoid a full page reload and the fragile setTimeout workaround.
+    const handleTabChange = (tab: ActiveTab) => {
         setActiveTab(tab);
-        // Small delay to ensure React finishes its updates before navigating away
-        setTimeout(() => {
-            window.location.href = `/?tab=${tab}`;
-        }, 0);
+        router.push(`/?tab=${tab}`);
     };
 
     useEffect(() => {
@@ -96,12 +78,12 @@ export default function ProductDetail() {
 
     const nextImage = () => {
         if (!product?.images?.length) return;
-        setCurrentImageIndex((prev) => (prev + 1) % product.images.length);
+        setCurrentImageIndex(prev => (prev + 1) % product.images.length);
     };
 
     const prevImage = () => {
         if (!product?.images?.length) return;
-        setCurrentImageIndex((prev) => (prev - 1 + product.images.length) % product.images.length);
+        setCurrentImageIndex(prev => (prev - 1 + product.images.length) % product.images.length);
     };
 
     if (loading) {
@@ -109,7 +91,7 @@ export default function ProductDetail() {
             <div className="min-h-screen bg-black text-white">
                 <Navbar activeTab={activeTab} onTabChange={handleTabChange} />
                 <div className="flex items-center justify-center min-h-[60vh]">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500"></div>
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-500" />
                 </div>
                 <Footer onNavigate={handleTabChange} />
             </div>
@@ -119,7 +101,7 @@ export default function ProductDetail() {
     if (!product) {
         return (
             <div className="min-h-screen bg-black text-white">
-                <Navbar activeTab={activeTab} onTabChange={setActiveTab} />
+                <Navbar activeTab={activeTab} onTabChange={handleTabChange} />
                 <div className="flex items-center justify-center min-h-[60vh]">
                     <div className="text-center">
                         <h2 className="text-2xl font-bold mb-4">المنتج غير موجود</h2>
@@ -128,7 +110,7 @@ export default function ProductDetail() {
                         </Button>
                     </div>
                 </div>
-                <Footer onNavigate={setActiveTab} />
+                <Footer onNavigate={handleTabChange} />
             </div>
         );
     }
@@ -221,7 +203,8 @@ export default function ProductDetail() {
                                     onClick={(e) => {
                                         e.preventDefault();
                                         e.stopPropagation();
-                                        toggle(product as any);
+                                        // Cast is safe — Product is a superset of WishlistProduct
+                                        toggle(product as Parameters<typeof toggle>[0]);
                                     }}
                                     className="absolute top-4 left-4 z-30 p-2 rounded-full bg-black/40 hover:bg-black/60 backdrop-blur-sm transition-all duration-200 hover:scale-110 active:scale-95"
                                     title={isWishlisted(product.id) ? 'إزالة من المفضلة' : 'إضافة إلى المفضلة'}
@@ -230,7 +213,9 @@ export default function ProductDetail() {
                                     <svg
                                         className={cn(
                                             'w-6 h-6 transition-colors duration-200',
-                                            isWishlisted(product.id) ? 'fill-red-500 text-red-500' : 'fill-none text-white hover:text-red-400'
+                                            isWishlisted(product.id)
+                                                ? 'fill-red-500 text-red-500'
+                                                : 'fill-none text-white hover:text-red-400'
                                         )}
                                         stroke="currentColor"
                                         viewBox="0 0 24 24"
@@ -284,7 +269,7 @@ export default function ProductDetail() {
                                         {translateProductType(product.productType || product.category.type)}
                                     </span>
                                     <span className="text-sm px-3 py-1 rounded-full pill">
-                                        {product.karat} عيار
+                                        عيار {product.karat}
                                     </span>
                                     {product.weight && (
                                         <span className="text-sm px-3 py-1 rounded-full pill">
@@ -320,7 +305,7 @@ export default function ProductDetail() {
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="bg-white/5 rounded-lg p-4">
                                         <div className="text-sm text-gray-400 mb-1">العيار</div>
-                                        <div className="font-semibold">{product.karat} عيار</div>
+                                        <div className="font-semibold">عيار {product.karat}</div>
                                     </div>
 
                                     <div className="bg-white/5 rounded-lg p-4">
@@ -367,9 +352,12 @@ export default function ProductDetail() {
 
                             <Separator className="bg-white/10" />
 
-                            {/* Contact Actions */}
+                            {/* Contact Actions — UX-01 fix: clear intent label */}
                             <div className="space-y-4">
-                                <h3 className="text-xl font-bold text-yellow-100 mb-4">تواصل معنا</h3>
+                                <h3 className="text-xl font-bold text-yellow-100 mb-1">للشراء أو الاستفسار</h3>
+                                <p className="text-sm text-yellow-500/70 mb-4">
+                                    تواصل معنا مباشرة وسيردّ عليك فريقنا فوراً
+                                </p>
 
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     <Button
@@ -382,7 +370,19 @@ export default function ProductDetail() {
 
                                     <Button
                                         variant="outline"
-                                        onClick={() => window.open(`https://wa.me/${CONTACT_INFO.whatsappNumber.replace('+', '')}`, '_blank')}
+                                        onClick={() =>
+                                            window.open(
+                                                `https://wa.me/${CONTACT_INFO.whatsappNumber.replace('+', '')}?text=${encodeURIComponent(
+                                                    `استفسار عن: ${product.nameAr}\n` +
+                                                    `العيار: ${product.karat}\n` +
+                                                    `الوزن: ${product.weight ? product.weight + ' جم' : 'غير محدد'}\n` +
+                                                    `السعر: ${product.price ? product.price + ' ج.م' : 'تواصل للسعر'}\n` +
+                                                    `الرابط: ${typeof window !== 'undefined' ? window.location.origin : ''}/product/${product.id}`
+                                                )}`,
+                                                '_blank',
+                                                'noopener,noreferrer'
+                                            )
+                                        }
                                         className="border-yellow-500/50 text-yellow-500 hover:bg-yellow-500 hover:text-black py-3"
                                     >
                                         <MessageCircle className="w-4 h-4 mr-2" />
@@ -391,11 +391,11 @@ export default function ProductDetail() {
 
                                     <Button
                                         variant="outline"
-                                        onClick={() => window.location.href = `mailto:info@michieljewelry.com?subject=${encodeURIComponent('استفسار عن ' + (product.name || product.nameAr))}`}
+                                        onClick={() => window.location.href = `tel:${CONTACT_INFO.phoneNumber}`}
                                         className="border-yellow-500/50 text-yellow-500 hover:bg-yellow-500 hover:text-black py-3"
                                     >
-                                        <Mail className="w-4 h-4 mr-2" />
-                                        بريد إلكتروني
+                                        <Phone className="w-4 h-4 mr-2" />
+                                        رقم الهاتف
                                     </Button>
                                 </div>
                             </div>

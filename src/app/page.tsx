@@ -11,9 +11,12 @@ import { Footer } from '@/components/layout/Footer';
 import { Navbar } from '@/components/layout/Navbar';
 import { ProductGrid } from '@/components/products/ProductGrid';
 import { AnimatePresence, motion } from 'framer-motion';
-import { useEffect, useRef, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense, useEffect, useRef, useState } from 'react';
 
-export default function Home() {
+function HomeContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   useEffect(() => {
     // Only register service worker in production to avoid dev SW bundling issues
     if (process.env.NODE_ENV === 'production' && 'serviceWorker' in navigator) {
@@ -43,67 +46,52 @@ export default function Home() {
 
   // Read tab parameter from URL on mount
   useEffect(() => {
-    try {
-      const url = new URL(window.location.href);
-      const tabParam = url.searchParams.get('tab');
-      if (tabParam && ['home', 'products', 'gold-info', 'about', 'contact', 'wishlist'].includes(tabParam)) {
-        setActiveTab(tabParam as 'home' | 'products' | 'gold-info' | 'about' | 'contact' | 'wishlist');
-      }
-    } catch (e) {
-      // ignore
+    const tabParam = searchParams.get('tab');
+    if (tabParam && ['home', 'products', 'gold-info', 'about', 'contact', 'wishlist'].includes(tabParam)) {
+      setActiveTab(tabParam as 'home' | 'products' | 'gold-info' | 'about' | 'contact' | 'wishlist');
     }
-  }, []);
+  }, [searchParams]);
 
   const handleProductClick = (product: any) => {
-    // Navigate to product detail page
-    window.location.href = `/product/${product.id}`;
+    // Navigate to product detail page without full page reload
+    router.push(`/product/${product.id}`);
   };
 
   const handleTabChange = (tab: typeof activeTab) => {
     setActiveTab(tab);
     // reflect in URL so other pages (product detail) can navigate here via ?tab=
-    try {
-      const url = new URL(window.location.href);
-      url.searchParams.set('tab', tab);
-      window.history.pushState({}, '', url.toString());
-    } catch (e) {
-      // ignore
-    }
+    router.push(`/?tab=${tab}`, { scroll: false });
   };
 
   const handleExploreClick = () => {
-    // Switch to products tab and scroll to product grid
     setActiveTab('products');
-    // Trigger recompilation
     setTimeout(() => {
       productGridRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 600);
+    }, 250);
   };
 
   const handleCategoryClick = (karat: number) => {
     setSelectedKarat(karat);
     setSelectedType(null);
+    setSelectedCategoryName(null); // Fix: Clear category name when selecting a specific karat
     setActiveTab('products');
-    // Wait for tab switch animation then scroll to grid
     setTimeout(() => {
       productGridRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 600);
+    }, 250);
   };
 
-  // Scroll to top when activeTab changes (but not when just filtering within products)
+  // Scroll to top instantly when tab changes — smooth scroll caused visible jank
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: 'instant' as ScrollBehavior });
   }, [activeTab]);
 
-  // Scroll to product grid when a collection is selected within the products tab
   const handleCollectionSelect = (categoryNameAr: string) => {
     setSelectedCategoryName(categoryNameAr);
     setSelectedKarat(null);
     setSelectedType(null);
-    // Wait for framer-motion page transition (500ms) + render, then scroll
     setTimeout(() => {
       productGridRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 600);
+    }, 250);
   };
 
   return (
@@ -127,7 +115,7 @@ export default function Home() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.5 }}
+              transition={{ duration: 0.2 }}
             >
               <Hero onExploreClick={handleExploreClick} onProductClick={handleProductClick} />
               <Categories selectedKarat={selectedKarat} onSelectKarat={handleCategoryClick} />
@@ -140,7 +128,7 @@ export default function Home() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.5 }}
+              transition={{ duration: 0.2 }}
             >
               <TrendingCollections onSelect={handleCollectionSelect} />
               <div ref={productGridRef}>
@@ -155,7 +143,7 @@ export default function Home() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.5 }}
+              transition={{ duration: 0.2 }}
             >
               <Wishlist />
             </motion.div>
@@ -167,7 +155,7 @@ export default function Home() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.5 }}
+              transition={{ duration: 0.2 }}
             >
               <GoldPrices />
             </motion.div>
@@ -179,7 +167,7 @@ export default function Home() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.5 }}
+              transition={{ duration: 0.2 }}
             >
               <About />
             </motion.div>
@@ -191,7 +179,7 @@ export default function Home() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.5 }}
+              transition={{ duration: 0.2 }}
             >
               <Contact />
             </motion.div>
@@ -201,5 +189,13 @@ export default function Home() {
 
       <Footer onNavigate={setActiveTab} />
     </div>
+  );
+}
+
+export default function Home() {
+  return (
+    <Suspense fallback={null}>
+      <HomeContent />
+    </Suspense>
   );
 }

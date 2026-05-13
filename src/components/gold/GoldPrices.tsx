@@ -15,33 +15,49 @@ function getMarketStatus(): { isOpen: boolean; label: string; nextEvent: string 
         weekday: 'short',
         hour: '2-digit',
         minute: '2-digit',
+        second: '2-digit',
     }).formatToParts(now);
 
     const hour = Number(parts.find((part) => part.type === 'hour')?.value ?? '0');
     const minute = Number(parts.find((part) => part.type === 'minute')?.value ?? '0');
+    const second = Number(parts.find((part) => part.type === 'second')?.value ?? '0');
     const weekday = parts.find((part) => part.type === 'weekday')?.value ?? 'Sun';
 
-    const cairoMinutes = hour * 60 + minute;
-    const openMinutes = 10 * 60;
-    const closeMinutes = 18 * 60;
+    const cairoSeconds = hour * 3600 + minute * 60 + second;
+    const openSeconds = 10 * 3600;
+    const closeSeconds = 18 * 3600;
     const isWeekday = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu'].includes(weekday);
-    const isOpen = isWeekday && cairoMinutes >= openMinutes && cairoMinutes < closeMinutes;
+    const isOpen = isWeekday && cairoSeconds >= openSeconds && cairoSeconds < closeSeconds;
 
     const pad = (n: number) => String(n).padStart(2, '0');
 
     let nextEvent = '';
     if (isOpen) {
-        const minsToClose = closeMinutes - cairoMinutes;
-        const h = Math.floor(minsToClose / 60);
-        const m = minsToClose % 60;
-        nextEvent = `${pad(h)}:${pad(m)}:00`;
+        const secsToClose = closeSeconds - cairoSeconds;
+        const h = Math.floor(secsToClose / 3600);
+        const m = Math.floor((secsToClose % 3600) / 60);
+        const s = secsToClose % 60;
+        nextEvent = `${pad(h)}:${pad(m)}:${pad(s)}`;
     } else {
         // Show time until next open
-        let minsToOpen = openMinutes - cairoMinutes;
-        if (minsToOpen <= 0) minsToOpen += 24 * 60;
-        const h = Math.floor(minsToOpen / 60);
-        const m = minsToOpen % 60;
-        nextEvent = `${pad(h)}:${pad(m)}:00`;
+        let secsToOpen = openSeconds - cairoSeconds;
+        const dayOfWeekMap: Record<string, number> = { 'Sun': 0, 'Mon': 1, 'Tue': 2, 'Wed': 3, 'Thu': 4, 'Fri': 5, 'Sat': 6 };
+        let currentDayIdx = dayOfWeekMap[weekday] ?? 0;
+        
+        if (secsToOpen <= 0) {
+            secsToOpen += 24 * 3600;
+            currentDayIdx = (currentDayIdx + 1) % 7;
+        }
+        
+        while (currentDayIdx === 5 || currentDayIdx === 6) { // Friday or Saturday
+            secsToOpen += 24 * 3600;
+            currentDayIdx = (currentDayIdx + 1) % 7;
+        }
+
+        const h = Math.floor(secsToOpen / 3600);
+        const m = Math.floor((secsToOpen % 3600) / 60);
+        const s = secsToOpen % 60;
+        nextEvent = `${pad(h)}:${pad(m)}:${pad(s)}`;
     }
 
     return { isOpen, label: isOpen ? 'سوق الذهب مفتوح' : 'سوق الذهب مغلق', nextEvent };
@@ -98,9 +114,9 @@ export function GoldPrices() {
     }, []);
 
     const priceCards = [
-        { karat: 24, label: 'ذهب 24 عيار', price: goldPrices?.karat24, color: 'text-yellow-400' },
-        { karat: 21, label: 'ذهب 21 عيار', price: goldPrices?.karat21, color: 'text-yellow-500' },
-        { karat: 18, label: 'ذهب 18 عيار', price: goldPrices?.karat18, color: 'text-yellow-600' },
+        { karat: 24, label: 'ذهب عيار 24', price: goldPrices?.karat24, color: 'text-yellow-400' },
+        { karat: 21, label: 'ذهب عيار 21', price: goldPrices?.karat21, color: 'text-yellow-500' },
+        { karat: 18, label: 'ذهب عيار 18', price: goldPrices?.karat18, color: 'text-yellow-600' },
     ];
 
     return (
@@ -166,7 +182,7 @@ export function GoldPrices() {
                                             <button
                                                 type="button"
                                                 className="w-16 h-16 gold-gradient rounded-full mx-auto mb-6 flex items-center justify-center shadow-lg shadow-black/50 cursor-pointer select-none"
-                                                aria-label={`عرض أسعار ${card.karat} عيار`}
+                                                aria-label={`عرض أسعار ذهب عيار ${card.karat}`}
                                             >
                                                 <span className="text-black font-bold text-xl select-none pointer-events-none">{card.karat}</span>
                                             </button>

@@ -222,9 +222,9 @@ export function ProductGrid({ initialKarat, initialType, initialCategoryName }: 
             const typeName = selectedType === 'bar' 
               ? 'سبائك' 
               : getProductTypes(selectedKarat || 24).find(t => t.id === selectedType)?.nameAr || '';
-            return `${typeName} ${selectedKarat} عيار`;
+            return `${typeName} عيار ${selectedKarat}`;
         }
-        if (selectedKarat) return `منتجات ${selectedKarat} عيار`;
+        if (selectedKarat) return `منتجات عيار ${selectedKarat}`;
         return 'منتجات مختارة';
     };
 
@@ -233,9 +233,9 @@ export function ProductGrid({ initialKarat, initialType, initialCategoryName }: 
             const typeName = selectedType === 'bar'
               ? ' السبائك'
               : ` ${getProductTypes(selectedKarat || 24).find(t => t.id === selectedType)?.nameAr || ''}`;
-            return `أجمل تصاميم${typeName} ${selectedKarat} عيار`;
+            return `أجمل تصاميم${typeName} عيار ${selectedKarat}`;
         }
-        if (selectedKarat) return `أجمل تصاميمنا الذهبية ${selectedKarat} عيار`;
+        if (selectedKarat) return `أجمل تصاميمنا الذهبية عيار ${selectedKarat}`;
         return 'مجموعة مختارة من أجمل تصاميمنا الذهبية';
     };
 
@@ -289,9 +289,13 @@ export function ProductGrid({ initialKarat, initialType, initialCategoryName }: 
                         {getPageSubtitle()}
                     </p>
 
-                    {(selectedKarat || selectedType) && (
+                    {(selectedKarat || selectedType || selectedCategoryName) && (
                         <Button
-                            onClick={() => { setSelectedKarat(null); setSelectedType(null); }}
+                            onClick={() => { 
+                                setSelectedKarat(null); 
+                                setSelectedType(null);
+                                setSelectedCategoryName(null);
+                            }}
                             variant="outline"
                             className="mt-6 border-yellow-500/50 text-yellow-500 hover:bg-yellow-500 hover:text-black transition-all"
                         >
@@ -314,7 +318,7 @@ export function ProductGrid({ initialKarat, initialType, initialCategoryName }: 
                                     variant="outline"
                                     className="border-yellow-600/50 text-yellow-500 hover:bg-yellow-600 hover:text-black min-w-[100px]"
                                 >
-                                    {karat} عيار
+                                    عيار {karat}
                                 </Button>
                             ))}
                         </motion.div>
@@ -523,7 +527,7 @@ export function ProductGrid({ initialKarat, initialType, initialCategoryName }: 
                                             <div className="mt-auto">
                                                 <div className="flex items-center gap-2 mb-3 flex-wrap">
                                                     <span className="text-xs uppercase tracking-[0.18em] text-yellow-500/80">{translateProductType(product.productType || product.category.type)}</span>
-                                                    <span className="text-[11px] px-2 py-1 rounded-full pill">{product.karat} عيار</span>
+                                                    <span className="text-[11px] px-2 py-1 rounded-full pill">عيار {product.karat}</span>
                                                     {product.weight && (
                                                         <span className="text-[11px] px-2 py-1 rounded-full pill">{product.weight} جم</span>
                                                     )}

@@ -2,6 +2,8 @@
 
 import { Facebook, Instagram, Mail, MapPin, Phone, Twitter } from 'lucide-react';
 
+import { CONTACT_INFO } from "../../../michiel-jewelry-app/constants/Config";
+
 interface FooterProps {
     onNavigate: (tab: 'home' | 'products' | 'gold-info' | 'about' | 'contact') => void;
 }
@@ -26,7 +28,7 @@ export function Footer({ onNavigate }: FooterProps) {
                             <a href="#" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-yellow-500 hover:text-black transition-all">
                                 <Instagram size={20} />
                             </a>
-                            <a href="#" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-yellow-500 hover:text-black transition-all">
+                            <a href={CONTACT_INFO.facebookURL} target="_blank" rel="noopener noreferrer" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-yellow-500 hover:text-black transition-all">
                                 <Facebook size={20} />
                             </a>
                             <a href="#" className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center hover:bg-yellow-500 hover:text-black transition-all">
@@ -71,17 +73,23 @@ export function Footer({ onNavigate }: FooterProps) {
                     <div className="text-right">
                         <h3 className="text-lg font-bold text-white mb-6 text-right leading-normal pb-1">تواصل معنا</h3>
                         <ul className="space-y-4">
-                            <li className="grid grid-cols-[auto_1fr] items-center gap-3 text-gray-400">
-                                <Phone size={18} className="text-yellow-500 justify-self-end" />
-                                <span className="text-right">+20 123 456 7890</span>
+                            <li>
+                                <a href={`tel:${CONTACT_INFO.phoneNumber}`} className="grid grid-cols-[auto_1fr] items-center gap-3 text-gray-400 hover:text-yellow-500 transition-colors group">
+                                    <Phone size={18} className="text-yellow-500 justify-self-end group-hover:scale-110 transition-transform" />
+                                    <span className="text-right">{CONTACT_INFO.phoneNumber}</span>
+                                </a>
                             </li>
-                            <li className="grid grid-cols-[auto_1fr] items-center gap-3 text-gray-400">
-                                <Mail size={18} className="text-yellow-500 justify-self-end" />
-                                <span className="text-right">info@michiel-jewelry.com</span>
+                            <li>
+                                <a href="mailto:info@michiel-jewelry.com" className="grid grid-cols-[auto_1fr] items-center gap-3 text-gray-400 hover:text-yellow-500 transition-colors group">
+                                    <Mail size={18} className="text-yellow-500 justify-self-end group-hover:scale-110 transition-transform" />
+                                    <span className="text-right">info@michiel-jewelry.com</span>
+                                </a>
                             </li>
-                            <li className="grid grid-cols-[auto_1fr] items-center gap-3 text-gray-400">
-                                <MapPin size={18} className="text-yellow-500 justify-self-end" />
-                                <span className="text-right">القاهرة، مصر</span>
+                            <li>
+                                <a href={CONTACT_INFO.location} target="_blank" rel="noopener noreferrer" className="grid grid-cols-[auto_1fr] items-center gap-3 text-gray-400 hover:text-yellow-500 transition-colors group">
+                                    <MapPin size={18} className="text-yellow-500 justify-self-end group-hover:scale-110 transition-transform" />
+                                    <span className="text-right">القاهرة، مصر</span>
+                                </a>
                             </li>
                         </ul>
                     </div>

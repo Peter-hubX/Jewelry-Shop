@@ -2,33 +2,18 @@
 
 import { useWishlistContext } from '@/context/WishlistContext';
 import { translateProductType } from '@/lib/productTypeTranslations';
+import type { WishlistProduct } from '@/types/product';
 import { motion } from 'framer-motion';
-import { Heart, ShoppingBag } from 'lucide-react';
+import { Heart, Info, ShoppingBag } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
 import Image from 'next/image';
-
-interface Product {
-    id: string;
-    nameAr: string;
-    descriptionAr: string;
-    price: number | null;
-    karat: number;
-    productType: string | null;
-    category: {
-        nameAr: string;
-        type: string;
-    };
-    images: string[];
-    featured: boolean;
-    weight?: number | null;
-}
+import { useEffect, useState } from 'react';
 
 export function Wishlist() {
     const router = useRouter();
     const { wishlist, isWishlisted, toggle } = useWishlistContext();
     const [mounted, setMounted] = useState(false);
-    const [products, setProducts] = useState<Product[]>([]);
+    const [products, setProducts] = useState<WishlistProduct[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -37,22 +22,25 @@ export function Wishlist() {
 
     useEffect(() => {
         const fetchWishlistProducts = async () => {
-            if (!mounted || wishlist.length === 0) {
+            if (!mounted) return;
+
+            if (wishlist.length === 0) {
+                setProducts([]);
                 setLoading(false);
                 return;
             }
 
             try {
                 setLoading(true);
-                // Fetch all products from wishlist
-                const response = await fetch(`/api/products`);
+                // UX-03 fix: pass ids to API and filter server-side — no longer
+                // fetching the entire catalog and filtering client-side.
+                const ids = wishlist.map(w => w.id).join(',');
+                const response = await fetch(`/api/products?ids=${encodeURIComponent(ids)}`);
                 if (response.ok) {
-                    const allProducts = await response.json();
-                    // Filter to only include products in the wishlist
-                    const wishlistProducts = allProducts.filter((p: Product) =>
-                        wishlist.some(w => w.id === p.id)
-                    );
-                    setProducts(wishlistProducts);
+                    const data = await response.json();
+                    // API may return paginated or plain array
+                    const fetched: WishlistProduct[] = Array.isArray(data) ? data : (data.data ?? []);
+                    setProducts(fetched);
                 } else {
                     setProducts([]);
                 }
@@ -119,7 +107,7 @@ export function Wishlist() {
                 <motion.div
                     initial={{ opacity: 0, y: -20 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="text-center mb-16"
+                    className="text-center mb-8"
                 >
                     <h2 className="text-4xl md:text-5xl font-bold mb-4 gold-text leading-normal pb-1">
                         قائمة مفضلتي
@@ -127,6 +115,12 @@ export function Wishlist() {
                     <p className="text-gray-400 text-lg">
                         {wishlist.length} {wishlist.length === 1 ? 'منتج' : 'منتجات'} في قائمة المفضلة
                     </p>
+
+                    {/* UX-02 fix: inform users the wishlist is browser-local */}
+                    <div className="inline-flex items-center gap-2 mt-4 px-4 py-2 rounded-full bg-yellow-500/10 border border-yellow-500/20 text-yellow-400/80 text-sm">
+                        <Info className="w-4 h-4 flex-shrink-0" />
+                        <span>قائمة المفضلة تُحفظ في هذا المتصفح فقط</span>
+                    </div>
                 </motion.div>
 
                 {/* Loading */}
@@ -175,14 +169,14 @@ export function Wishlist() {
                                         </div>
                                     )}
 
-                                    {/* Wishlist Button */}
+                                    {/* Wishlist remove button */}
                                     <button
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             toggle(product);
                                         }}
                                         className="absolute top-3 left-3 p-2 rounded-full bg-black/40 hover:bg-black/60 backdrop-blur-sm transition-all duration-200 hover:scale-110 active:scale-95"
-                                        title="إزالة من المفضلة"
+                                        title={isWishlisted(product.id) ? 'إزالة من المفضلة' : 'إضافة إلى المفضلة'}
                                         type="button"
                                     >
                                         <Heart className="w-5 h-5 fill-red-500 text-red-500" />
@@ -195,7 +189,7 @@ export function Wishlist() {
                                             {translateProductType(product.productType || product.category.type)}
                                         </span>
                                         <span className="text-xs px-2 py-1 rounded-full pill">
-                                            {product.karat} عيار
+                                            عيار {product.karat}
                                         </span>
                                     </div>
 
@@ -212,7 +206,7 @@ export function Wishlist() {
                                             {product.price.toLocaleString('ar-EG')} ج.م
                                         </div>
                                     ) : (
-                                        <div className="text-lg font-semibold text-yellow-500 pt-2">
+                                        <div className="text-lg font-semibold text-yellow-500/80 pt-2">
                                             تواصل للسعر
                                         </div>
                                     )}

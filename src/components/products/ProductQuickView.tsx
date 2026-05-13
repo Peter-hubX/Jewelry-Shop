@@ -14,6 +14,8 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 
+import { CONTACT_INFO } from "../../../michiel-jewelry-app/constants/Config";
+
 interface Product {
   id: string;
   nameAr: string;
@@ -35,7 +37,7 @@ export function ProductQuickView({ product }: Readonly<{ product: Product }>) {
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{product.nameAr}</DialogTitle>
-          <DialogDescription>{product.karat} عيار {product.weight ? `• ${product.weight} جم` : ''}</DialogDescription>
+          <DialogDescription>عيار {product.karat} {product.weight ? `• ${product.weight} جم` : ''}</DialogDescription>
         </DialogHeader>
 
         <div className="grid grid-cols-1 gap-4">
@@ -61,7 +63,30 @@ export function ProductQuickView({ product }: Readonly<{ product: Product }>) {
 
         <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4 text-right text-sm text-gray-300 mb-4">
           <p className="mb-2 font-semibold text-yellow-400">هل تحتاج إلى مزيد من المعلومات؟</p>
-          <p>للطلب والاستفسارات، يرجى التواصل معنا عبر <span className="text-yellow-400 font-medium">الواتس أب</span> أو <span className="text-yellow-400 font-medium">البريد الإلكتروني</span></p>
+          <p>
+            للطلب والاستفسارات، يرجى التواصل معنا عبر{" "}
+            <a
+              href={`https://wa.me/${CONTACT_INFO.whatsappNumber.replace('+', '')}?text=${encodeURIComponent(
+                `استفسار عن: ${product.nameAr}\n` +
+                `العيار: ${product.karat}\n` +
+                `الوزن: ${product.weight ? product.weight + ' جم' : 'غير محدد'}\n` +
+                `السعر: ${product.price ? product.price + ' ج.م' : 'تواصل للسعر'}\n` +
+                `الرابط: ${typeof window !== 'undefined' ? window.location.origin : ''}/product/${product.id}`
+              )}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-yellow-400 font-bold hover:underline"
+            >
+              الواتس أب
+            </a>{" "}
+            أو{" "}
+            <a
+              href={`tel:${CONTACT_INFO.phoneNumber}`}
+              className="text-yellow-400 font-bold hover:underline"
+            >
+              رقم الهاتف
+            </a>
+          </p>
         </div>
 
         <DialogFooter>

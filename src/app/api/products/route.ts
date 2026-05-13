@@ -1,84 +1,90 @@
-import { db } from '@/lib/db';
+// src/app/api/products/route.ts
+import { requireAdminSecret } from '@/lib/auth';
+import { err, ok, preflight } from '@/lib/apiResponse';
+import { calculateDynamicPrice } from '@/lib/pricing';
 import { getLiveGram24kPrice } from '@/lib/goldPrices';
-import { NextRequest, NextResponse } from 'next/server';
+import { parseImages } from '@/lib/utils';
+import { db } from '@/lib/db';
+import { NextRequest } from 'next/server';
 
-/** Calculate dynamic price for a product based on live gold price */
-function calculateDynamicPrice(weight: number | null, karat: number, productType: string | null, goldPrices: { gram24k: number; gram21k: number; gram18k: number }): number | null {
-  if (!weight || weight <= 0) return null;
+// ─── Allowed values ───────────────────────────────────────────────────────────
 
-  let pricePerGram: number;
-  switch (karat) {
-    case 24: pricePerGram = goldPrices.gram24k; break;
-    case 21: pricePerGram = goldPrices.gram21k; break;
-    case 18: pricePerGram = goldPrices.gram18k; break;
-    default: return null;
-  }
+const ALLOWED_SORT_FIELDS = [
+  'price', 'price-asc', 'price-desc',
+  'weight', 'name', 'newest', 'trending', 'createdAt',
+] as const;
+type SortField = typeof ALLOWED_SORT_FIELDS[number];
 
-  // Craftsmanship premium: bars have lower premium than jewelry
-  let premium: number;
-  if (karat === 24) {
-    premium = weight >= 10 ? 1.02 : 1.05;
-  } else if (productType === 'bar') {
-    premium = karat === 21 ? 1.08 : 1.1;
-  } else {
-    premium = karat === 21 ? 1.2 : 1.25;
-  }
+const VALID_KARATS = [18, 21, 24] as const;
 
-  return Math.round(weight * pricePerGram * premium);
-}
+// ─── GET: list products (public) ─────────────────────────────────────────────
 
 export async function GET(request: NextRequest) {
-  const applyCORS = (res: NextResponse) => {
-    res.headers.set('Access-Control-Allow-Origin', '*');
-    res.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    return res;
-  };
-
   try {
     const { searchParams } = new URL(request.url);
-    const category = searchParams.get('category');
-    const karat = searchParams.get('karat');
-    const karats = searchParams.getAll('karat'); // Support multiple karat parameters
+
+    // --- Sanitised & validated params ---
+    const category  = searchParams.get('category');
+    const karats    = searchParams.getAll('karat')
+                        .map(k => Number.parseInt(k))
+                        .filter(k => !Number.isNaN(k) && (VALID_KARATS as readonly number[]).includes(k));
+    const karat     = searchParams.get('karat') ? Number.parseInt(searchParams.get('karat')!) : null;
     const productType = searchParams.get('type');
-    const featured = searchParams.get('featured');
-    const type = searchParams.get('categoryType');
-    const search = searchParams.get('search');
-    const minPrice = searchParams.get('minPrice');
-    const maxPrice = searchParams.get('maxPrice');
+    const featured  = searchParams.get('featured');
+    const type      = searchParams.get('categoryType');
+    const inStock   = searchParams.get('inStock');
+    const ids       = searchParams.get('ids'); // for wishlist batch fetch (UX-03 fix)
+
+    // Search: capped at 100 chars to prevent resource exhaustion (MED-01 fix)
+    const rawSearch = searchParams.get('search');
+    const search    = rawSearch ? rawSearch.trim().slice(0, 100) : null;
+
+    // Price/weight range filters
+    const minPrice  = searchParams.get('minPrice');
+    const maxPrice  = searchParams.get('maxPrice');
     const minWeight = searchParams.get('minWeight');
     const maxWeight = searchParams.get('maxWeight');
-    const inStock = searchParams.get('inStock');
-    const sortBy = searchParams.get('sortBy') || 'createdAt';
-    const rawOrder = searchParams.get('sortOrder') ?? 'desc';
-    const sortOrder = ['asc', 'desc'].includes(rawOrder) ? rawOrder : 'desc';
-    
-    const pageParam = searchParams.get('page');
-    const page = pageParam ? parseInt(pageParam) : undefined;
-    const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : undefined;
 
+    // Sort: strict allowlist enforced (MED-02 fix)
+    const rawSort   = searchParams.get('sortBy') ?? 'trending';
+    const sortBy: SortField = (ALLOWED_SORT_FIELDS as readonly string[]).includes(rawSort)
+      ? rawSort as SortField
+      : 'trending';
+
+    const rawOrder  = searchParams.get('sortOrder') ?? 'desc';
+    const sortOrder = rawOrder === 'asc' ? 'asc' : 'desc';
+
+    // Pagination
+    const pageParam = searchParams.get('page');
+    const page      = pageParam ? Math.max(1, parseInt(pageParam)) : undefined;
+    const limitRaw  = searchParams.get('limit');
+    const limit     = limitRaw ? Math.min(100, Math.max(1, parseInt(limitRaw))) : undefined;
+
+    // --- Build Prisma where clause ---
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let whereClause: any = {};
 
-    if (category) whereClause.category = { nameAr: category };
-    
-    // Handle multiple karat values
-    if (karats.length > 0) {
-      const karatNums = karats.map(k => Number.parseInt(k)).filter(k => !Number.isNaN(k) && [18, 21, 24].includes(k));
-      if (karatNums.length > 0) {
-        whereClause.karat = { in: karatNums };
-      }
-    } else if (karat) {
-      const karatNum = Number.parseInt(karat);
-      if (!Number.isNaN(karatNum) && [18, 21, 24].includes(karatNum)) whereClause.karat = karatNum;
+    if (ids) {
+      // Wishlist batch fetch: filter by explicit id list
+      const idList = ids.split(',').filter(Boolean).slice(0, 200); // max 200 ids
+      whereClause.id = { in: idList };
     }
-    if (productType) whereClause.productType = productType;
-    if (type) whereClause.category = { ...whereClause.category, type };
+    if (category)     whereClause.category = { nameAr: category };
+    if (karats.length > 1) {
+      whereClause.karat = { in: karats };
+    } else if (karats.length === 1) {
+      whereClause.karat = karats[0];
+    } else if (karat && (VALID_KARATS as readonly number[]).includes(karat)) {
+      whereClause.karat = karat;
+    }
+    if (productType)  whereClause.productType = productType;
+    if (type)         whereClause.category = { ...whereClause.category, type };
     if (featured === 'true') whereClause.featured = true;
-    if (inStock === 'true') whereClause.inStock = true;
+    if (inStock === 'true')  whereClause.inStock  = true;
     if (search) {
       whereClause.OR = [
         { nameAr: { contains: search } },
-        { descriptionAr: { contains: search } }
+        { descriptionAr: { contains: search } },
       ];
     }
     if (minPrice || maxPrice) {
@@ -92,111 +98,103 @@ export async function GET(request: NextRequest) {
       if (maxWeight) { const v = parseFloat(maxWeight); if (!isNaN(v)) whereClause.weight.lte = v; }
     }
 
-    let orderBy: any = {};
+    // --- Build order-by ---
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let orderBy: any;
     switch (sortBy) {
-      case 'price-asc': 
-      case 'price': 
-        orderBy = [{ price: 'asc' }, { weight: 'asc' }]; 
-        break;
-      case 'price-desc': 
-        orderBy = [{ price: 'desc' }, { weight: 'desc' }]; 
-        break;
-      case 'weight': orderBy = { weight: sortOrder }; break;
-      case 'name': orderBy = { nameAr: sortOrder }; break;
-      case 'newest': orderBy = { createdAt: 'desc' }; break;
+      case 'price':
+      case 'price-asc':  orderBy = [{ price: 'asc' },  { weight: 'asc' }];  break;
+      case 'price-desc': orderBy = [{ price: 'desc' }, { weight: 'desc' }]; break;
+      case 'weight':     orderBy = { weight: sortOrder };                    break;
+      case 'name':       orderBy = { nameAr: sortOrder };                    break;
+      case 'newest':
+      case 'createdAt':  orderBy = { createdAt: 'desc' };                   break;
       case 'trending':
-      default: 
-        orderBy = [{ featured: 'desc' }, { createdAt: 'desc' }];
-        break;
+      default:           orderBy = [{ featured: 'desc' }, { createdAt: 'desc' }];
     }
 
-    let skip: number | undefined = undefined;
-    if (page && limit) {
-      skip = (page - 1) * limit;
-    }
+    const skip = page && limit ? (page - 1) * limit : undefined;
 
     // Fetch products and live gold prices in parallel
     const [products, totalCount, goldPrices] = await Promise.all([
-      db.product.findMany({ 
-        where: whereClause, 
-        include: { category: true }, 
+      db.product.findMany({
+        where: whereClause,
+        include: { category: true },
         orderBy,
         take: limit,
-        skip
+        skip,
       }),
       page ? db.product.count({ where: whereClause }) : Promise.resolve(0),
-      getLiveGram24kPrice()
+      getLiveGram24kPrice(),
     ]);
 
     const productsWithDynamicPrices = products.map(product => ({
       ...product,
-      images: product.images ? JSON.parse(product.images) : [],
-      // Always calculate price dynamically from live gold price
+      images: parseImages(product.images),
       price: calculateDynamicPrice(product.weight, product.karat, product.productType, goldPrices),
     }));
 
-    if (page) {
-      return applyCORS(NextResponse.json({
+    if (page && limit) {
+      return ok({
         data: productsWithDynamicPrices,
         total: totalCount,
         page,
-        totalPages: limit ? Math.ceil(totalCount / limit) : 1
-      }));
+        totalPages: Math.ceil(totalCount / limit),
+      });
     }
 
-    return applyCORS(NextResponse.json(productsWithDynamicPrices));
+    return ok(productsWithDynamicPrices);
   } catch (error) {
     console.error('Error fetching products:', error);
-    return applyCORS(NextResponse.json({ error: 'Failed to fetch products' }, { status: 500 }));
+    return err('Failed to fetch products', 500);
   }
 }
 
-export async function OPTIONS() {
-  const response = new NextResponse(null, { status: 204 });
-  response.headers.set('Access-Control-Allow-Origin', '*');
-  response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  return response;
-}
+// ─── POST: create product (admin only) ───────────────────────────────────────
 
 export async function POST(request: NextRequest) {
   try {
-    const authHeader = request.headers.get('authorization');
-    const secret = process.env.ADMIN_API_SECRET;
-    if (!secret) throw new Error('ADMIN_API_SECRET is not configured');
-    if (!authHeader || authHeader !== `Bearer ${secret}`) {
-      return NextResponse.json({ error: 'Unauthorized. Admin access required.' }, { status: 401 });
-    }
+    const authError = requireAdminSecret(request, 'ADMIN_API_SECRET');
+    if (authError) return authError;
 
     const body = await request.json();
-    const { name, nameAr, description, descriptionAr, price, weight, karat, purity, images, inStock, featured, categoryId, certificate, manufacturer, productType } = body;
+    const {
+      name, nameAr, description, descriptionAr, price, weight,
+      karat, purity, images, inStock, featured, categoryId,
+      certificate, manufacturer, productType,
+    } = body;
 
-    if (!name || !nameAr) return NextResponse.json({ error: 'Name and nameAr are required' }, { status: 400 });
-    if (!karat || ![18, 21, 24].includes(karat)) return NextResponse.json({ error: 'Karat must be 18, 21, or 24' }, { status: 400 });
-    if (!categoryId) return NextResponse.json({ error: 'CategoryId is required' }, { status: 400 });
+    if (!name || !nameAr)
+      return err('Name and nameAr are required', 400);
+    if (!karat || !(VALID_KARATS as readonly number[]).includes(karat))
+      return err('Karat must be 18, 21, or 24', 400);
+    if (!categoryId)
+      return err('CategoryId is required', 400);
 
     let validatedPrice: number | null = null;
     if (price !== undefined && price !== null) {
       const priceNum = parseFloat(price);
-      if (isNaN(priceNum) || priceNum <= 0) return NextResponse.json({ error: 'Price must be a positive number' }, { status: 400 });
+      if (isNaN(priceNum) || priceNum <= 0) return err('Price must be a positive number', 400);
       validatedPrice = priceNum;
     }
 
     let validatedWeight: number | null = null;
     if (weight !== undefined && weight !== null) {
       const weightNum = parseFloat(weight);
-      if (isNaN(weightNum) || weightNum <= 0) return NextResponse.json({ error: 'Weight must be a positive number' }, { status: 400 });
+      if (isNaN(weightNum) || weightNum <= 0) return err('Weight must be a positive number', 400);
       validatedWeight = weightNum;
     }
 
     let validatedImages: string | null = null;
     if (images && Array.isArray(images)) {
-      const validImages = images.filter((img: any) => typeof img === 'string' && (img.startsWith('/') || img.startsWith('http')));
-      if (validImages.length > 0) validatedImages = JSON.stringify(validImages);
+      const validImgs = images.filter(
+        (img: unknown) => typeof img === 'string' && (img.startsWith('/') || img.startsWith('http'))
+      );
+      if (validImgs.length > 0) validatedImages = JSON.stringify(validImgs);
     }
 
     const category = await db.category.findUnique({ where: { id: categoryId } });
-    if (!category) return NextResponse.json({ error: 'Category not found' }, { status: 404 });
+    if (!category) return err('Category not found', 404);
 
     const product = await db.product.create({
       data: {
@@ -207,14 +205,22 @@ export async function POST(request: NextRequest) {
         inStock: inStock !== undefined ? Boolean(inStock) : true,
         featured: featured !== undefined ? Boolean(featured) : false,
         categoryId, certificate: certificate?.trim() || null,
-        manufacturer: manufacturer?.trim() || null, productType: productType?.trim() || null
+        manufacturer: manufacturer?.trim() || null, productType: productType?.trim() || null,
       },
-      include: { category: true }
+      include: { category: true },
     });
 
-    return NextResponse.json({ ...product, images: product.images ? JSON.parse(product.images) : [] }, { status: 201 });
+    return ok({ ...product, images: parseImages(product.images) }, 201);
   } catch (error) {
     console.error('Error creating product:', error);
-    return NextResponse.json({ error: 'Failed to create product', details: error instanceof Error ? error.message : 'Unknown error' }, { status: 500 });
+    return err('Failed to create product', 500, {
+      details: error instanceof Error ? error.message : 'Unknown error',
+    });
   }
+}
+
+// ─── OPTIONS: preflight ───────────────────────────────────────────────────────
+
+export async function OPTIONS() {
+  return preflight();
 }

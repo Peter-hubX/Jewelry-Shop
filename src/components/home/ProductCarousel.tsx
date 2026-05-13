@@ -217,7 +217,7 @@ export function ProductCarousel({ onProductClick }: ProductCarouselProps) {
                                 <div className="space-y-4">
                                     <div className="flex items-center gap-3 mb-2">
                                         <span className="text-xs uppercase tracking-[0.18em] text-yellow-500/80">{translateProductType(currentProduct.productType || currentProduct.category.type)}</span>
-                                        <span className="text-sm px-3 py-1 rounded-full pill">{currentProduct.karat} عيار</span>
+                                        <span className="text-sm px-3 py-1 rounded-full pill">عيار {currentProduct.karat}</span>
                                         {currentProduct.weight && (
                                             <span className="text-sm px-3 py-1 rounded-full pill">{currentProduct.weight} جم</span>
                                         )}

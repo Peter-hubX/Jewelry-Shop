@@ -1,28 +1,13 @@
 'use client';
 
 import { useWishlist } from '@/hooks/useWishlist';
+import type { WishlistProduct } from '@/types/product';
 import { createContext, ReactNode, useContext } from 'react';
 
-interface Product {
-  id: string;
-  nameAr: string;
-  descriptionAr: string;
-  price: number | null;
-  karat: number;
-  productType: string | null;
-  category: {
-    nameAr: string;
-    type: string;
-  };
-  images: string[];
-  featured: boolean;
-  weight?: number | null;
-}
-
 interface WishlistContextType {
-  wishlist: Product[];
+  wishlist: WishlistProduct[];
   isWishlisted: (id: string) => boolean;
-  toggle: (product: Product) => void;
+  toggle: (product: WishlistProduct) => void;
   remove: (id: string) => void;
   clear: () => void;
   loaded: boolean;

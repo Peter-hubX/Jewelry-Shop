@@ -37,6 +37,18 @@
     ".next/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    // ── Old/backup files ─────────────────────────────────────────────────────
+    "src/app/page-old.tsx",       // archived backup, not part of the live app
+    // ── Mobile React Native app (separate tsconfig scope) ────────────────────
+    "michiel-jewelry-app",
+    "index.tsx",                  // React Native / Expo root entry — not web
+    // ── Test infrastructure (managed by Playwright, not tsc) ─────────────────
+    "seed.spec.ts",
+    "specs",
+    // ── Build artefacts ───────────────────────────────────────────────────────
+    ".next",
+    "out",
+    "build"
   ]
 }
